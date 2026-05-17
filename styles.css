@@ -1,0 +1,147 @@
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(34, 197, 94, 0.3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 197, 94, 0.5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideUp {
+    animation: slideUp 0.5s ease-out forwards;
+}
+
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chat-messages p:last-child {
+    animation: slideUp 0.3s ease-out;
+}
+
+/* Smooth transitions for nav */
+.nav-btn {
+    position: relative;
+}
+
+.nav-btn.active {
+    color: rgb(34, 197, 94);
+}
+
+/* Focus states */
+input:focus,
+button:focus {
+    outline: none;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Smooth page transitions */
+.page-content {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Button hover effects */
+button:hover {
+    transform: translateY(-2px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Card hover effects */
+.bg-gradient-to-br:hover {
+    transform: translateY(-4px) scale(1.01);
+}
+
+/* Input focus */
+input:focus {
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    accent-color: rgb(34, 197, 94);
+    cursor: pointer;
+}
+
+input[type="checkbox"]:hover {
+    filter: brightness(1.2);
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Success state */
+.success {
+    animation: slideUp 0.4s ease-out;
+}
