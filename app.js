@@ -1,24 +1,64 @@
-// ===== PAGE NAVIGATION =====
-const navButtons = document.querySelectorAll('.nav-btn');
-const pageContents = document.querySelectorAll('.page-content');
+// ===== FIREBASE & AUTH CHECK =====
+let currentUser = null;
+let isAuthReady = false;
 
-navButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const targetPage = btn.getAttribute('data-page');
-        navigateTo(targetPage);
-    });
+// Wait for Firebase auth before doing anything
+auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+        window.location.href = 'login.html';
+    } else {
+        currentUser = user;
+        isAuthReady = true;
+        
+        // Load user data from Firestore
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (doc.exists) {
+                Object.assign(userData, doc.data());
+            }
+        } catch (error) {
+            console.log('Firestore load error:', error);
+        }
+        
+        // Initialize all functionality AFTER auth is ready
+        initializeAllFeatures();
+    }
 });
 
-function navigateTo(pageId) {
+// ===== PAGE NAVIGATION =====
+function initializeAllFeatures() {
+    initializePageNavigation();
+    initializeChatFeature();
+    initializeMealTracking();
+    loadInitialData();
+}
+
+function initializePageNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const pageContents = document.querySelectorAll('.page-content');
+    
+    if (navButtons.length === 0) return; // Safety check
+    
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetPage = btn.getAttribute('data-page');
+            navigateTo(targetPage, navButtons, pageContents);
+        });
+    });
+    
+    // Load last visited page
+    const lastPage = localStorage.getItem('lastPage') || 'homePage';
+    navigateTo(lastPage, navButtons, pageContents);
+}
+
+function navigateTo(pageId, navButtons, pageContents) {
     // Hide all pages
     pageContents.forEach(page => page.classList.add('hidden'));
     
     // Remove active class from all nav buttons
-    navButtons.forEach(btn => btn.classList.remove('active', 'text-emerald-400'));
     navButtons.forEach(btn => {
-        if (btn.getAttribute('data-page') !== pageId) {
-            btn.classList.add('text-gray-500', 'hover:text-gray-300');
-        }
+        btn.classList.remove('active', 'text-emerald-400');
+        btn.classList.add('text-gray-500', 'hover:text-gray-300');
     });
     
     // Show selected page
@@ -31,44 +71,49 @@ function navigateTo(pageId) {
     // Update nav button styling
     const activeBtn = document.querySelector(`[data-page="${pageId}"]`);
     if (activeBtn) {
-        activeBtn.classList.add('active', 'text-emerald-400');
         activeBtn.classList.remove('text-gray-500', 'hover:text-gray-300');
+        activeBtn.classList.add('active', 'text-emerald-400');
     }
     
     // Save preference
     localStorage.setItem('lastPage', pageId);
 }
 
-// Load last visited page
-window.addEventListener('load', () => {
-    const lastPage = localStorage.getItem('lastPage') || 'homePage';
-    navigateTo(lastPage);
-});
-
 // ===== CHAT FUNCTIONALITY =====
-const chatInput = document.getElementById('chatInput');
-const sendBtn = document.getElementById('sendBtn');
-const chatMessages = document.getElementById('chatMessages');
+function initializeChatFeature() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatMessages = document.getElementById('chatMessages');
+    
+    if (!chatInput || !sendBtn) return; // Safety check
+    
+    const coachResponses = [
+        "Bagus bro! Jangan lupa warm-up sebelum mula!",
+        "Kau tu malas ke? Bangun awal-awal pergi gym!",
+        "Aku tengok kau ni dedikasi tinggi! Teruskan bro!",
+        "Makan yang betul, jangan makan makanan sampah!",
+        "Cardio jangan lupa! Jangan jadi tong sampah je!",
+        "Rest day pun penting bro! Otot berkembang masa tidur!",
+        "Minum air banyak-banyak! Jangan sampai dehidrasi!",
+        "Protein penting bro! Makan telur, ayam, ikan!",
+        "Progress lambat-lambat tapi pasti! Sabar je lah!",
+        "Aku proud kat kau! Teruskan effort ni!",
+        "Minum air banyak-banyak, jangan lepas!",
+        "Konsisten bro! Seminggu 4 kali gym dah cukup!",
+        "Jangan skip leg day! Legs ada banyak muscles!",
+        "Sleep 8 hours! Recovery is growth, bro!",
+        "Track your macros! Protein, carbs, fats important!",
+    ];
+    
+    sendBtn.addEventListener('click', () => sendMessage(chatInput, chatMessages, coachResponses));
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage(chatInput, chatMessages, coachResponses);
+    });
+    
+    loadChat(chatMessages);
+}
 
-const coachResponses = [
-    "Bagus bro! Jangan lupa warm-up sebelum mula!",
-    "Kau tu malas ke? Bangun awal-awal pergi gym!",
-    "Aku tengok kau ni dedikasi tinggi! Teruskan bro!",
-    "Makan yang betul, jangan makan makanan sampah!",
-    "Cardio jangan lupa! Jangan jadi tong sampah je!",
-    "Rest day pun penting bro! Otot berkembang masa tidur!",
-    "Minum air banyak-banyak! Jangan sampai dehidrasi!",
-    "Protein penting bro! Makan telur, ayam, ikan!",
-    "Progress lambat-lambat tapi pasti! Sabar je lah!",
-    "Aku proud kat kau! Teruskan effort ni!",
-];
-
-sendBtn.addEventListener('click', sendMessage);
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-function sendMessage() {
+function sendMessage(chatInput, chatMessages, coachResponses) {
     const message = chatInput.value.trim();
     if (!message) return;
     
@@ -81,6 +126,14 @@ function sendMessage() {
     // Clear input
     chatInput.value = '';
     
+    // Save to Firestore
+    if (currentUser) {
+        db.collection('users').doc(currentUser.uid).update({
+            lastMessage: message,
+            lastMessageTime: new Date()
+        }).catch(e => console.log('Save error:', e));
+    }
+    
     // Coach response (simulate delay)
     setTimeout(() => {
         const randomResponse = coachResponses[Math.floor(Math.random() * coachResponses.length)];
@@ -91,11 +144,24 @@ function sendMessage() {
         
         // Auto scroll
         chatMessages.scrollTop = chatMessages.scrollHeight;
-    }, 300);
+        
+        // Save chat to localStorage
+        saveChat(chatMessages);
+    }, 500);
     
-    // Save chat
-    saveChat();
     chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function saveChat(chatMessages) {
+    const chatContent = chatMessages.innerHTML;
+    localStorage.setItem('chatHistory', chatContent);
+}
+
+function loadChat(chatMessages) {
+    const saved = localStorage.getItem('chatHistory');
+    if (saved) {
+        chatMessages.innerHTML = saved;
+    }
 }
 
 // ===== DATA MANAGEMENT =====
@@ -108,71 +174,55 @@ const userData = {
     streak: 3,
     totalWorkouts: 32,
     totalDays: 45,
-    name: 'Bro Gym',
+    name: 'User',
     height: 175,
     age: 25,
     bmi: 24.6
 };
 
-// Load data from localStorage
-function loadData() {
-    const saved = localStorage.getItem('userData');
-    if (saved) {
-        Object.assign(userData, JSON.parse(saved));
-    }
-}
-
-// Save data to localStorage
-function saveData() {
-    localStorage.setItem('userData', JSON.stringify(userData));
-    updateUI();
-}
-
-// Update UI with data
 function updateUI() {
-    document.getElementById('dailyBudget').textContent = `RM${userData.dailyBudget.toFixed(2)}`;
-    document.getElementById('currentWeight').textContent = userData.currentWeight;
-    document.getElementById('streakCount').textContent = userData.streak;
-    document.getElementById('calorieProgress').textContent = `${userData.dailyCalories}/${userData.targetCalories}`;
-    document.getElementById('weightProgress').textContent = `${userData.currentWeight}/${userData.targetWeight}`;
-    document.getElementById('totalWorkouts').textContent = userData.totalWorkouts;
-    document.getElementById('totalDays').textContent = userData.totalDays;
-    document.getElementById('userName').textContent = userData.name;
-    document.getElementById('statWeight').textContent = `${userData.currentWeight} `;
-    document.getElementById('statHeight').textContent = `${userData.height} `;
-    document.getElementById('statBMI').textContent = userData.bmi.toFixed(1);
-    document.getElementById('statAge').textContent = userData.age;
-}
-
-// Save chat
-function saveChat() {
-    const chatContent = chatMessages.innerHTML;
-    localStorage.setItem('chatHistory', chatContent);
-}
-
-// Load chat
-function loadChat() {
-    const saved = localStorage.getItem('chatHistory');
-    if (saved) {
-        chatMessages.innerHTML = saved;
-    }
+    const elements = {
+        'dailyBudget': `RM${userData.dailyBudget.toFixed(2)}`,
+        'currentWeight': userData.currentWeight,
+        'streakCount': userData.streak,
+        'calorieProgress': `${userData.dailyCalories}/${userData.targetCalories}`,
+        'weightProgress': `${userData.currentWeight}/${userData.targetWeight}`,
+        'totalWorkouts': userData.totalWorkouts,
+        'totalDays': userData.totalDays,
+        'userName': userData.name,
+        'statWeight': `${userData.currentWeight} `,
+        'statHeight': `${userData.height} `,
+        'statBMI': userData.bmi.toFixed(1),
+        'statAge': userData.age
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    });
 }
 
 // ===== MEAL TRACKING =====
-const mealCheckboxes = document.querySelectorAll('input[type="checkbox"]');
-
-mealCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
-        const mealCard = e.target.closest('.bg-gradient-to-br');
-        if (e.target.checked) {
-            mealCard.classList.add('opacity-60');
-            showNotification('✅ Meal logged!');
-        } else {
-            mealCard.classList.remove('opacity-60');
-        }
-        saveMealData();
+function initializeMealTracking() {
+    const mealCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    
+    mealCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const mealCard = e.target.closest('.bg-gradient-to-br');
+            if (mealCard) {
+                if (e.target.checked) {
+                    mealCard.classList.add('opacity-60');
+                    showNotification('✅ Meal logged!');
+                } else {
+                    mealCard.classList.remove('opacity-60');
+                }
+            }
+            saveMealData();
+        });
     });
-});
+    
+    loadMealData();
+}
 
 function saveMealData() {
     const meals = {
@@ -180,6 +230,13 @@ function saveMealData() {
         lunch: document.getElementById('lunchCheck')?.checked || false,
         dinner: document.getElementById('dinnerCheck')?.checked || false
     };
+    
+    if (currentUser) {
+        db.collection('users').doc(currentUser.uid).update({
+            meals: meals
+        }).catch(e => console.log('Error:', e));
+    }
+    
     localStorage.setItem('meals', JSON.stringify(meals));
 }
 
@@ -187,25 +244,28 @@ function loadMealData() {
     const saved = localStorage.getItem('meals');
     if (saved) {
         const meals = JSON.parse(saved);
-        if (meals.breakfast && document.getElementById('breakfastCheck')) {
-            document.getElementById('breakfastCheck').checked = true;
-            document.getElementById('breakfastCheck').closest('.bg-gradient-to-br')?.classList.add('opacity-60');
-        }
-        if (meals.lunch && document.getElementById('lunchCheck')) {
-            document.getElementById('lunchCheck').checked = true;
-            document.getElementById('lunchCheck').closest('.bg-gradient-to-br')?.classList.add('opacity-60');
-        }
-        if (meals.dinner && document.getElementById('dinnerCheck')) {
-            document.getElementById('dinnerCheck').checked = true;
-            document.getElementById('dinnerCheck').closest('.bg-gradient-to-br')?.classList.add('opacity-60');
-        }
+        
+        const mealIds = {
+            breakfast: 'breakfastCheck',
+            lunch: 'lunchCheck',
+            dinner: 'dinnerCheck'
+        };
+        
+        Object.entries(meals).forEach(([key, checked]) => {
+            const checkbox = document.getElementById(mealIds[key]);
+            if (checkbox && checked) {
+                checkbox.checked = true;
+                const card = checkbox.closest('.bg-gradient-to-br');
+                if (card) card.classList.add('opacity-60');
+            }
+        });
     }
 }
 
 // ===== NOTIFICATIONS =====
 function showNotification(message) {
     const notif = document.createElement('div');
-    notif.className = 'fixed top-4 right-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-3 rounded-xl shadow-lg shadow-emerald-500/50 z-50 animate-slideUp';
+    notif.className = 'fixed top-4 right-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/50 z-50 animate-slideUp';
     notif.textContent = message;
     document.body.appendChild(notif);
     
@@ -214,14 +274,15 @@ function showNotification(message) {
     }, 2000);
 }
 
-// ===== INIT =====
-window.addEventListener('load', () => {
-    loadData();
-    loadChat();
-    loadMealData();
+// ===== DATA SYNC WITH FIRESTORE =====
+function loadInitialData() {
     updateUI();
-    navigateTo('homePage');
-});
+}
 
-// Auto-save every 30 seconds
-setInterval(saveData, 30000);
+// Auto-save to Firestore every 30 seconds
+setInterval(() => {
+    if (currentUser && isAuthReady) {
+        db.collection('users').doc(currentUser.uid).update(userData)
+            .catch(e => console.log('Auto-save error:', e));
+    }
+}, 30000);
