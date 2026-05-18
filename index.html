@@ -18,10 +18,32 @@
                 <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">⚡ AIGYMBROS</h1>
                 <p class="text-xs text-gray-400">Coach Mat tengah perati kau...</p>
             </div>
-            <div class="bg-gradient-to-r from-amber-600 to-amber-700 px-3 py-1.5 rounded-full text-xs text-white font-bold border border-amber-500/50 shadow-lg shadow-amber-500/20" id="streakBadge">
-                🔥 <span id="streakCount">3</span> Day
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-r from-amber-600 to-amber-700 px-3 py-1.5 rounded-full text-xs text-white font-bold border border-amber-500/50 shadow-lg shadow-amber-500/20" id="streakBadge">
+                    🔥 <span id="streakCount">3</span> Day
+                </div>
+                <button id="userMenuBtn" class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg hover:scale-110 transition-all">
+                    <span id="userInitial">U</span>
+                </button>
             </div>
         </header>
+
+        <!-- USER MENU DROPDOWN -->
+        <div id="userMenu" class="hidden absolute top-20 right-4 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-xl z-30 w-48 overflow-hidden">
+            <div class="p-4 border-b border-gray-700">
+                <p class="text-sm font-bold text-white" id="userNameMenu">User</p>
+                <p class="text-xs text-gray-400 truncate" id="userEmailMenu">user@email.com</p>
+            </div>
+            <button class="w-full p-3 text-left text-sm hover:bg-gray-700/50 transition-all text-gray-300 flex items-center gap-2">
+                <i class="fa-solid fa-user-circle"></i> Edit Profile
+            </button>
+            <button class="w-full p-3 text-left text-sm hover:bg-gray-700/50 transition-all text-gray-300 flex items-center gap-2">
+                <i class="fa-solid fa-cog"></i> Settings
+            </button>
+            <button id="logoutBtn" class="w-full p-3 text-left text-sm hover:bg-red-900/30 transition-all text-red-400 flex items-center gap-2 border-t border-gray-700">
+                <i class="fa-solid fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
 
         <!-- MAIN CONTENT -->
         <main class="flex-1 overflow-y-auto pb-28">
@@ -382,11 +404,6 @@
                             </button>
                         </div>
                     </div>
-
-                    <!-- LOGOUT -->
-                    <button class="w-full mt-6 bg-gradient-to-r from-red-700 to-red-800 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-bold transition-all duration-200 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-sign-out-alt"></i> Log Keluar
-                    </button>
                 </div>
             </div>
 
@@ -413,6 +430,89 @@
         </nav>
 
     </div>
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmPRONev1f7YSrSmqLG82JDCv8DKmo_ow",
+            authDomain: "gymbros-66a9f.firebaseapp.com",
+            projectId: "gymbros-66a9f",
+            storageBucket: "gymbros-66a9f.firebasestorage.app",
+            messagingSenderId: "379916155169",
+            appId: "1:379916155169:web:a5cba29b79f3647dbca660",
+            measurementId: "G-PLEC79SQU7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Check Authentication
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+            } else {
+                // Load user data from Firestore
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    const userData = doc.data();
+                    updateUIWithUserData(user, userData);
+                }
+                initializeApp();
+            }
+        });
+
+        // Update UI with user data
+        function updateUIWithUserData(user, userData) {
+            document.getElementById('userName').textContent = userData.name || user.displayName || 'User';
+            document.getElementById('userNameMenu').textContent = userData.name || user.displayName || 'User';
+            document.getElementById('userEmailMenu').textContent = user.email;
+            document.getElementById('userInitial').textContent = (userData.name || user.displayName || 'U').charAt(0).toUpperCase();
+            document.getElementById('dailyBudget').textContent = `RM${(userData.dailyBudget || 20).toFixed(2)}`;
+            document.getElementById('currentWeight').textContent = userData.currentWeight || 75.4;
+            document.getElementById('streakCount').textContent = userData.streak || 0;
+            document.getElementById('totalWorkouts').textContent = userData.totalWorkouts || 0;
+            document.getElementById('totalDays').textContent = userData.totalDays || 0;
+            document.getElementById('statWeight').textContent = `${userData.currentWeight || 75.4} `;
+            document.getElementById('statHeight').textContent = `${userData.height || 175} `;
+            document.getElementById('statBMI').textContent = (userData.bmi || 24.6).toFixed(1);
+            document.getElementById('statAge').textContent = userData.age || 25;
+        }
+
+        // User Menu Toggle
+        document.getElementById('userMenuBtn').addEventListener('click', () => {
+            const menu = document.getElementById('userMenu');
+            menu.classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuBtn') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
+        // Logout Button
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
+
+        // Initialize App
+        function initializeApp() {
+            // All existing app functionality goes here
+        }
+    </script>
 
     <script src="app.js"></script>
 </body>
